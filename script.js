@@ -1,15 +1,18 @@
 // ==UserScript==
-// @name         CS:GO Skin Pattern Detector
+// @name         CCO Pattern List
 // @namespace    http://tampermonkey.net/
 // @version      0.3
-// @description  Display special skin patterns with overpay information and unique animations
+// @description  Display special skin patterns with overpay information
 // @author       You
-// @match        *://*/*
+// @match        https://case-clicker.com/*
 // @grant        none
 // ==/UserScript==
-
 (function() {
     'use strict';
+
+let patternScriptConfig = {
+  "textColor": "#5cffd7"
+}
 
     // Global variable to store patterns data
     let specialPatternsData = null;
@@ -41,7 +44,7 @@
         style.id = 'pattern-styles';
         style.textContent = `
             .pattern-text {
-                background: #5cffd7 !important;
+                background: ${patternScriptConfig.textColor} !important;
                 background-size: 200% 200% !important;
                 -webkit-background-clip: text !important;
                 -webkit-text-fill-color: transparent !important;
@@ -233,7 +236,8 @@
             const patternNameText = document.createElement('p');
             patternNameText.className = 'mantine-focus-auto m_b6d8b162 mantine-Text-root pattern-text';
             patternNameText.style.cssText = `
-                --text-fz: var(--mantine-font-size-xs);
+                color: #EFBF04 !important;
+                --text-fz: var(--mantine-font-size-s);
                 --text-lh: var(--mantine-line-height-xs);
                 margin-top: calc(0.3125rem * var(--mantine-scale));
                 font-weight: bold;
