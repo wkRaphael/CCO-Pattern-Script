@@ -4,7 +4,7 @@
 // @version      0.3
 // @description  Display special skin patterns with overpay information
 // @author       You
-// @match        https://case-clicker.com/*
+// @match        https://case-clicker.com/cases/*
 // @grant        none
 // ==/UserScript==
 (function() {
