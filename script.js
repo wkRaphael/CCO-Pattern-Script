@@ -1,22 +1,29 @@
 // ==UserScript==
 // @name         CCO Pattern List
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.4
 // @description  Display special skin patterns with overpay information
-// @author       You
-// @match        https://case-clicker.com/cases/*
+// @author       wkRaphael
+// @match        https://case-clicker.com/*
+// @updateURL    https://raw.githubusercontent.com/wkRaphael/CCO-Pattern-Script/refs/heads/main/script.js
+// @downloadURL  https://raw.githubusercontent.com/wkRaphael/CCO-Pattern-Script/refs/heads/main/script.js
 // @grant        none
 // ==/UserScript==
 (function() {
     'use strict';
 
-let patternScriptConfig = {
-  "textColor": "#5cffd7"
-}
+    let patternScriptConfig = {
+        "textColor": "#5cffd7"
+    }
 
     // Global variable to store patterns data
     let specialPatternsData = null;
     let currentURL = window.location.href;
+
+    // Function to check if we're on a cases page
+    function isOnCasesPage() {
+        return window.location.pathname.startsWith('/cases/');
+    }
 
     // Function to fetch patterns from GitHub
     async function fetchPatternsData() {
@@ -120,13 +127,24 @@ let patternScriptConfig = {
 
         weaponNames.forEach(weaponName => {
             console.log(`Checking weapon: "${weaponName}"`);
-            const matchedSkin = specialPatternsData.skins.find(skin => {
-                const skinNameMatch = skin.skinName === weaponName;
-                const partialMatch = weaponName.includes(skin.skinName.split(' | ')[0]) &&
-                                   weaponName.includes(skin.skinName.split(' | ')[1]);
 
-                console.log(`  Comparing with "${skin.skinName}": exact=${skinNameMatch}, partial=${partialMatch}`);
-                return skinNameMatch || partialMatch;
+            // Find exact match only
+            const matchedSkin = specialPatternsData.skins.find(skin => {
+                // Exact match comparison
+                const exactMatch = skin.skinName.toLowerCase() === weaponName.toLowerCase();
+
+                // Also check if both parts match exactly (for cases where formatting might differ)
+                const weaponParts = weaponName.split(' | ').map(p => p.trim().toLowerCase());
+                const skinParts = skin.skinName.split(' | ').map(p => p.trim().toLowerCase());
+
+                const partsMatch = weaponParts.length === 2 &&
+                                  skinParts.length === 2 &&
+                                  weaponParts[0] === skinParts[0] &&
+                                  weaponParts[1] === skinParts[1];
+
+                console.log(`  Comparing with "${skin.skinName}": exact=${exactMatch}, parts=${partsMatch}`);
+
+                return exactMatch || partsMatch;
             });
 
             if (matchedSkin) {
@@ -347,6 +365,17 @@ let patternScriptConfig = {
     }
 
     function injectPatternsDisplay() {
+        // Check if we're on a cases page
+        if (!isOnCasesPage()) {
+            console.log('Not on a cases page, skipping pattern injection');
+            // Remove any existing pattern display if we navigated away
+            const existingDisplay = document.querySelector('#patterns-display');
+            if (existingDisplay) {
+                existingDisplay.remove();
+            }
+            return true; // Return true to stop retrying
+        }
+
         // Check if patterns data is loaded
         if (!specialPatternsData) {
             console.log('Patterns data not loaded yet, skipping injection');
@@ -401,10 +430,13 @@ let patternScriptConfig = {
                 existingDisplay.remove();
             }
 
-            // Try to inject patterns again after a short delay
-            setTimeout(() => {
-                injectPatternsDisplay();
-            }, 1000);
+            // Only try to inject patterns if we're on a cases page
+            if (isOnCasesPage()) {
+                // Try to inject patterns again after a short delay
+                setTimeout(() => {
+                    injectPatternsDisplay();
+                }, 1000);
+            }
         }
     }
 
@@ -440,6 +472,12 @@ let patternScriptConfig = {
         const dataLoaded = await fetchPatternsData();
         if (!dataLoaded) {
             console.log('Failed to load patterns data, script will not work');
+            return;
+        }
+
+        // Only proceed if we're on a cases page
+        if (!isOnCasesPage()) {
+            console.log('Not on a cases page, waiting for navigation');
             return;
         }
 
