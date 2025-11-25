@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CCO Pattern List
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  Display special skin patterns with overpay information
 // @author       wkRaphael
 // @match        https://case-clicker.com/*
@@ -25,18 +25,90 @@
         return window.location.pathname.startsWith('/cases/');
     }
 
-    // Function to fetch patterns from GitHub
+    // Function to fetch patterns from Case Clicker directly
     async function fetchPatternsData() {
         try {
-            console.log('Fetching patterns data from GitHub...');
-            const response = await fetch('https://raw.githubusercontent.com/wkRaphael/CCO-Pattern-Script/refs/heads/main/patterns.json');
+            console.log('Fetching patterns data...');
+
+            // Get Build ID from Next.js data
+            let buildId;
+            try {
+                const nextData = document.getElementById('__NEXT_DATA__');
+                if (nextData) {
+                    const jsonData = JSON.parse(nextData.textContent);
+                    buildId = jsonData.buildId;
+                    console.log('Found Build ID:', buildId);
+                } else {
+                    throw new Error('__NEXT_DATA__ element not found');
+                }
+            } catch (e) {
+                console.error('Error getting Build ID:', e);
+                return false;
+            }
+
+            // Construct URL with dynamic Build ID
+            const patternsUrl = `https://case-clicker.com/_next/data/${buildId}/en/help/patterns.json`;
+            console.log('Fetching from:', patternsUrl);
+
+            const response = await fetch(patternsUrl);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
+
             const data = await response.json();
-            specialPatternsData = data;
-            console.log(`Loaded ${data.totalSkins} skins with special patterns`);
-            return true;
+            let rawSkins = null;
+
+            // Handle Next.js data structure
+            // 1. Check for pageProps
+            if (data.pageProps) {
+                // 2. Check for 'skingroups' (New API Format)
+                if (data.pageProps.skingroups) {
+                    // The new API sends this as a stringified JSON string, not an object
+                    if (typeof data.pageProps.skingroups === 'string') {
+                        try {
+                            rawSkins = JSON.parse(data.pageProps.skingroups);
+                            console.log('Successfully parsed stringified skingroups');
+                        } catch (e) {
+                            console.error('Failed to parse skingroups string:', e);
+                        }
+                    } else {
+                        // In case it reverts to being a normal array
+                        rawSkins = data.pageProps.skingroups;
+                    }
+                }
+                // 3. Fallback check for old 'skins' format
+                else if (data.pageProps.skins) {
+                    rawSkins = data.pageProps.skins;
+                }
+            }
+            // 4. Direct check (rare, but good fallback)
+            else if (data.skins) {
+                rawSkins = data.skins;
+            }
+
+            if (rawSkins && Array.isArray(rawSkins)) {
+                // Normalize data structure
+                specialPatternsData = {
+                    skins: rawSkins.map(skin => ({
+                        ...skin,
+                        // Ensure skinName exists by using 'name' if 'skinName' is missing
+                        skinName: skin.skinName || skin.name,
+                        // Normalize patterns array to ensure patternName exists
+                        patterns: skin.patterns ? skin.patterns.map(p => ({
+                            ...p,
+                            // The new API uses 'name' for the pattern name (e.g. "Blue Gem")
+                            // The script expects 'patternName'
+                            patternName: p.patternName || p.name
+                        })) : []
+                    }))
+                };
+                console.log(`Loaded ${specialPatternsData.skins.length} skins with special patterns`);
+                return true;
+            } else {
+                console.warn('Loaded data but could not find valid skins/skingroups array:', data);
+                return false;
+            }
+
         } catch (error) {
             console.error('Failed to fetch patterns data:', error);
             return false;
@@ -117,8 +189,8 @@
     }
 
     function findMatchingPatterns(weaponNames) {
-        if (!specialPatternsData) {
-            console.log('Patterns data not loaded yet');
+        if (!specialPatternsData || !specialPatternsData.skins) {
+            console.log('Patterns data not loaded properly');
             return [];
         }
 
@@ -216,9 +288,12 @@
             imageSection.className = 'm_599a2148 mantine-Card-section';
             imageSection.setAttribute('data-first-section', 'true');
 
-            if (pattern.imageSrc) {
+            // Handle image source: try existing imageSrc or construct from iconUrl
+            const imgSrc = pattern.imageSrc || (pattern.iconUrl ? `https://case-clicker.com/pictures/skins/${pattern.iconUrl}` : null);
+
+            if (imgSrc) {
                 const img = document.createElement('img');
-                img.src = pattern.imageSrc;
+                img.src = imgSrc;
                 img.className = 'm_9e117634 mantine-Image-root';
                 img.style.cssText = `
                     --image-object-fit: contain;
@@ -295,7 +370,11 @@
             const overpaySpan = document.createElement('span');
             overpaySpan.className = 'm_5add502a mantine-Badge-label';
             // Remove " overpay" from the text
-            overpaySpan.textContent = pattern.overpay.replace(' overpay', '');
+            if (pattern.overpay) {
+                overpaySpan.textContent = pattern.overpay.toString().replace(' overpay', '');
+            } else {
+                overpaySpan.textContent = '0';
+            }
             overpayBadge.appendChild(overpaySpan);
             overpayGroup.appendChild(overpayBadge);
 
@@ -329,8 +408,18 @@
 
             const chanceSpan = document.createElement('span');
             chanceSpan.className = 'm_5add502a mantine-Badge-label';
-            // Remove " chance" from the text
-            chanceSpan.textContent = pattern.chance.replace(' chance', '');
+
+            // Check if probability exists and format it as chance if not a string string already
+            let chanceText = "Unknown";
+            if (pattern.probability) {
+                // If it's a raw number like 1000, we might want to display it as is or map it
+                // For now, just display the value
+                chanceText = pattern.probability.toString().replace(' chance', '');
+            } else if (pattern.chance) {
+                chanceText = pattern.chance.replace(' chance', '');
+            }
+
+            chanceSpan.textContent = '1/' + chanceText;
             chanceBadge.appendChild(chanceSpan);
             chanceGroup.appendChild(chanceBadge);
 
