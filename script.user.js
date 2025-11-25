@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CCO Pattern List
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Display special skin patterns with overpay information
 // @author       wkRaphael
 // @match        https://case-clicker.com/*
@@ -369,11 +369,21 @@
 
             const overpaySpan = document.createElement('span');
             overpaySpan.className = 'm_5add502a mantine-Badge-label';
-            // Remove " overpay" from the text
+            // Format overpay as currency
+            const formatCurrency = (value) => {
+                const num = parseFloat(value.toString().replace(' overpay', ''));
+                const isNegative = num < 0;
+                const absNum = Math.abs(num);
+                const formatted = absNum.toLocaleString('en-US', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                });
+                return isNegative ? `-$${formatted}` : `$${formatted}`;
+            };
             if (pattern.overpay) {
-                overpaySpan.textContent = pattern.overpay.toString().replace(' overpay', '');
+                overpaySpan.textContent = formatCurrency(pattern.overpay);
             } else {
-                overpaySpan.textContent = '0';
+                overpaySpan.textContent = '$0';
             }
             overpayBadge.appendChild(overpaySpan);
             overpayGroup.appendChild(overpayBadge);
