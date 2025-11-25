@@ -5,8 +5,8 @@
 // @description  Display special skin patterns with overpay information
 // @author       wkRaphael
 // @match        https://case-clicker.com/*
-// @updateURL    https://raw.githubusercontent.com/wkRaphael/CCO-Pattern-Script/refs/heads/main/script.js
-// @downloadURL  https://raw.githubusercontent.com/wkRaphael/CCO-Pattern-Script/refs/heads/main/script.js
+// @updateURL    https://raw.githubusercontent.com/wkRaphael/CCO-Pattern-Script/refs/heads/main/script.user.js
+// @downloadURL  https://raw.githubusercontent.com/wkRaphael/CCO-Pattern-Script/refs/heads/main/script.user.js
 // @grant        none
 // ==/UserScript==
 (function() {
